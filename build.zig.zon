@@ -1,0 +1,24 @@
+.{
+    .name = .Daxa,
+    .fingerprint = 0xa174135195ec6642,
+    .version = "3.0.2",
+    .minimum_zig_version = "0.15.1",
+    .dependencies = .{
+        .vma = .{
+            .url = "git+https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator",
+            .hash = "N-V-__8AACmyPgDcDRNlHsADkbrTlSTwlW-azw5ObWSs_Qlu",
+        },
+        .vk_headers = .{
+            .url = "git+https://github.com/KhronosGroup/Vulkan-Headers",
+            .hash = "N-V-__8AAESg9gHKzlANbo03d4Fcb5m_5aZXJXIhYbWzCe4G",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "tests",
+        "misc",
+        "include",
+    },
+}

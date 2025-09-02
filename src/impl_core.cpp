@@ -116,8 +116,8 @@ auto create_surface(daxa_Instance instance, daxa_NativeWindowHandle handle, [[ma
         }
     }
     break;
-    }
 #endif
+    }
 #endif
 }
 

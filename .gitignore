@@ -463,3 +463,8 @@ vcpkg/
 
 wiki/daxa-book/book/*
 preproc
+
+# Zig
+
+zig-out
+.zig-cache
