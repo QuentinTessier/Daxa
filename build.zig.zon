@@ -5,12 +5,12 @@
     .minimum_zig_version = "0.15.1",
     .dependencies = .{
         .vma = .{
-            .url = "git+https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator",
-            .hash = "N-V-__8AACmyPgDcDRNlHsADkbrTlSTwlW-azw5ObWSs_Qlu",
+            .url = "git+https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator#e722e57c891a8fbe3cc73ca56c19dd76be242759",
+            .hash = "N-V-__8AABf8PgCnYVmvDdgKCaLJt0BqIjI7IkJDQJ-nFpnD",
         },
         .vk_headers = .{
-            .url = "git+https://github.com/KhronosGroup/Vulkan-Headers",
-            .hash = "N-V-__8AAESg9gHKzlANbo03d4Fcb5m_5aZXJXIhYbWzCe4G",
+            .url = "git+https://github.com/KhronosGroup/Vulkan-Headers#450bd2232225d6c7728a4108055ac2e37cef6475",
+            .hash = "N-V-__8AAGSNKwJZiGFaqVB6IuAdH-9I--Ti1-0lJkIWsSBA",
         },
     },
     .paths = .{
