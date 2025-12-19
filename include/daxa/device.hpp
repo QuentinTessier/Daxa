@@ -196,6 +196,12 @@ namespace daxa
         u32 invocation_reorder_mode = {};
     };
 
+    struct HostImageCopyProperties
+    {
+        u8 optimal_tiling_layout_uuid[16U];
+        bool identical_memory_type_requirements;
+    };
+
 #if !DAXA_REMOVE_DEPRECATED
     struct DeviceFlagsProperties
     {
@@ -258,7 +264,6 @@ namespace daxa
         SUBGROUP_SIZE_CONTROL,
         COMPUTE_FULL_SUBGROUPS,
         SCALAR_BLOCK_LAYOUT,
-        HOST_IMAGE_COPY,
         ACCELERATION_STRUCTURE_CAPTURE_REPLAY,
         VULKAN_MEMORY_MODEL,
         ROBUST_BUFFER_ACCESS2,
@@ -278,6 +283,7 @@ namespace daxa
         static inline constexpr ExplicitFeatureFlags ACCELERATION_STRUCTURE_CAPTURE_REPLAY = {0x1 << 1};
         static inline constexpr ExplicitFeatureFlags VK_MEMORY_MODEL = {0x1 << 2};
         static inline constexpr ExplicitFeatureFlags ROBUSTNESS_2 = {0x1 << 3};
+        static inline constexpr ExplicitFeatureFlags PIPELINE_LIBRARY_GROUP_HANDLES = {0x1 << 4};
     };
 
     struct ImplicitFeatureProperties
@@ -303,6 +309,7 @@ namespace daxa
         static inline constexpr ImplicitFeatureFlags SWAPCHAIN = {0x1 << 12};
         static inline constexpr ImplicitFeatureFlags SHADER_INT16 = {0x1 << 13};
         static inline constexpr ImplicitFeatureFlags SHADER_CLOCK = {0x1 << 14};
+        static inline constexpr ImplicitFeatureFlags LINE_RASTERIZATION = {0x1 << 15};
     };
 
     struct DeviceProperties
@@ -319,6 +326,8 @@ namespace daxa
         Optional<RayTracingPipelineProperties> ray_tracing_properties = {};
         Optional<AccelerationStructureProperties> acceleration_structure_properties = {};
         Optional<InvocationReorderProperties> invocation_reorder_properties = {};
+        Optional<HostImageCopyProperties> host_image_copy_properties = {};
+        u32 required_subgroup_size_stages;
         u32 compute_queue_count = {};
         u32 transfer_queue_count = {};
         ImplicitFeatureFlags implicit_features;
@@ -362,7 +371,7 @@ namespace daxa
         MemoryImageCopyFlagBits flags = {};
         std::byte const* memory_ptr = {};
         ImageId image = {};
-        ImageLayout image_layout = {};
+        [[deprecated("Ignored parameter, layout must be GENERAL; API:3.2")]] ImageLayout image_layout = {};
         ImageArraySlice image_slice = {};
         Offset3D image_offset = {};
         Extent3D image_extent = {};
@@ -372,19 +381,27 @@ namespace daxa
     {
         MemoryImageCopyFlagBits flags = {};
         ImageId image = {};
-        ImageLayout image_layout = {};
+        [[deprecated("Ignored parameter, layout must be GENERAL; API:3.2")]] ImageLayout image_layout = {};
         ImageArraySlice image_slice = {};
         Offset3D image_offset = {};
         Extent3D image_extent = {};
         std::byte* memory_ptr = {};
     };
 
-    struct HostImageLayoutTransitionInfo
+#if !DAXA_REMOVE_DEPRECATED
+    struct [[deprecated("Use HostImageLayoutOperationInfo instead; API:3.2")]] HostImageLayoutTransitionInfo
     {
         ImageId image = {};
         ImageLayout old_image_layout = {};
         ImageLayout new_image_layout = {};
         ImageMipArraySlice image_slice = {};
+    };
+#endif
+
+    struct HostImageLayoutOperationInfo
+    {
+        ImageId image = {};
+        ImageLayoutOperation layout_operation = {};
     };
 
     struct DeviceInfo2
@@ -668,11 +685,16 @@ namespace daxa
 
         void copy_memory_to_image(MemoryToImageCopyInfo const & info);
         void copy_image_to_memory(ImageToMemoryCopyInfo const & info);
-        void transition_image_layout(HostImageLayoutTransitionInfo const & info);
+        void image_layout_operation(HostImageLayoutOperationInfo const & info);
+
+        #if !DAXA_REMOVE_DEPRECATED
+        [[deprecated("Use image_layout_operation instead; API:3.2")]] void transition_image_layout(HostImageLayoutTransitionInfo const & info);
+        #endif
 
         [[nodiscard]] auto create_raster_pipeline(RasterPipelineInfo const & info) -> RasterPipeline;
         [[nodiscard]] auto create_compute_pipeline(ComputePipelineInfo const & info) -> ComputePipeline;
         [[nodiscard]] auto create_ray_tracing_pipeline(RayTracingPipelineInfo const & info) -> RayTracingPipeline;
+        [[nodiscard]] auto create_ray_tracing_pipeline_library(RayTracingPipelineInfo const & info) -> RayTracingPipelineLibrary;
 
         [[nodiscard]] auto create_swapchain(SwapchainInfo const & info) -> Swapchain;
         [[nodiscard]] auto create_command_recorder(CommandRecorderInfo const & info) -> CommandRecorder;

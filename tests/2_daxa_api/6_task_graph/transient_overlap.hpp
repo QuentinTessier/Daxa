@@ -127,7 +127,7 @@ namespace tests
             .name = "test image pipeline",
         };
 
-        auto test_image_pipeline = pipeline_manager.add_compute_pipeline2(test_image_pipeline_info).value();
+        auto test_image_pipeline = pipeline_manager.add_compute_pipeline2(test_image_pipeline_info).value().get();
 
         {
             f32 const IMAGE_A_VALUE = 1.0f;
@@ -172,7 +172,7 @@ namespace tests
                 }));
 
             task_graph.add_task(daxa::InlineTask::Compute("Task 2 - test contents of image A and B")
-                .compute_shader.samples(image_A, image_B)
+                .compute_shader.reads(image_A, image_B)
                 .executes([=](daxa::TaskInterface ti)
                 {
                     validate_image_data(ti, image_A, IMAGE_A_SIZE, IMAGE_A_VALUE, *test_image_pipeline);
@@ -188,7 +188,7 @@ namespace tests
                 }));
 
             task_graph.add_task(daxa::InlineTask::Compute("Task 4 - test contents of image A and C")
-                .compute_shader.samples(image_A, image_C)
+                .compute_shader.reads(image_A, image_C)
                 .executes([=](daxa::TaskInterface ti)
                 {
                     validate_image_data(ti, image_A, IMAGE_A_SIZE, IMAGE_C_VALUE, *test_image_pipeline);
@@ -238,7 +238,7 @@ namespace tests
             .name = "test image pipeline",
         };
 
-        auto test_image_pipeline = pipeline_manager.add_compute_pipeline2(test_image_pipeline_info).value();
+        auto test_image_pipeline = pipeline_manager.add_compute_pipeline2(test_image_pipeline_info).value().get();
 
         {
             f32 const IMAGE_A_VALUE = 1.0f;
@@ -287,7 +287,7 @@ namespace tests
                         }));
 
                     task_graph.add_task(daxa::InlineTask::Compute("Perm True - Task 2 - check image A")
-                        .samples(image_A)
+                        .reads(image_A)
                         .executes([=](daxa::TaskInterface ti)
                         {
                             validate_image_data(ti, image_A, IMAGE_A_SIZE, IMAGE_A_VALUE, *test_image_pipeline);
@@ -310,7 +310,7 @@ namespace tests
                         }));
 
                     task_graph.add_task(daxa::InlineTask::Compute("Perm False - Task 2 - check image B")
-                        .samples(image_B)
+                        .reads(image_B)
                         .executes([=](daxa::TaskInterface ti)
                         {
                             validate_image_data(ti, image_B, IMAGE_B_SIZE, IMAGE_B_VALUE, *test_image_pipeline);
@@ -319,7 +319,7 @@ namespace tests
             });
 
             task_graph.add_task(daxa::InlineTask::Compute("Task 3 - validate base image data")
-                .samples(image_base)
+                .reads(image_base)
                 .executes([=](daxa::TaskInterface ti)
                 {
                     validate_image_data(ti, image_base, IMAGE_BASE_SIZE, IMAGE_BASE_VALUE, *test_image_pipeline);
@@ -361,13 +361,13 @@ namespace tests
             .defines = std::vector{daxa::ShaderDefine{"TEST_IMAGE", "1"}},
             .name = "test image",
         };
-        auto test_image_pipeline = pipeline_manager.add_compute_pipeline2(test_image_pipeline_info).value();
+        auto test_image_pipeline = pipeline_manager.add_compute_pipeline2(test_image_pipeline_info).value().get();
 
         daxa::ComputePipelineCompileInfo2 const test_buffer_pipeline_info = {
             .source = daxa::ShaderFile{"transient.glsl"},
             .name = "test buffer",
         };
-        auto test_buffer_pipeline = pipeline_manager.add_compute_pipeline2(test_buffer_pipeline_info).value();
+        auto test_buffer_pipeline = pipeline_manager.add_compute_pipeline2(test_buffer_pipeline_info).value().get();
 
         {
             auto task_graph = daxa::TaskGraph({
@@ -432,7 +432,7 @@ namespace tests
 
             task_graph.add_task(daxa::InlineTask("validate long life buffer, validate medium life image, populate long life image")
                 .compute_shader.reads(long_life_buffer)
-                .compute_shader.samples(medium_life_image)
+                .compute_shader.reads(medium_life_image)
                 .transfer.writes(long_life_image)
                 .executes([=](daxa::TaskInterface ti)
                 {
@@ -447,7 +447,7 @@ namespace tests
 
             task_graph.add_task(daxa::InlineTask::Compute("dummy use short life image")
                 .reads_writes(short_life_buffer)
-                .samples(long_life_image)
+                .reads(long_life_image)
                 .executes([=](daxa::TaskInterface ti)
                 {
                     validate_image_data(ti, long_life_image, LONG_LIFE_IMAGE_SIZE, LONG_LIFE_IMAGE_VALUE, *test_image_pipeline);

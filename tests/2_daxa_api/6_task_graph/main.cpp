@@ -3,14 +3,14 @@
 #include "common.hpp"
 DAXA_DECL_COMPUTE_TASK_HEAD_BEGIN(ExampleTaskHead)
 DAXA_TH_BUFFER(READ, buffer0)
-DAXA_TH_IMAGE(SAMPLED, REGULAR_2D, image0)
-DAXA_TH_IMAGE(SAMPLED, REGULAR_2D, image1)
+DAXA_TH_IMAGE(READ, REGULAR_2D, image0)
+DAXA_TH_IMAGE(READ, REGULAR_2D, image1)
 DAXA_TH_BUFFER(READ, test_buffer_no_shader)
 DAXA_DECL_TASK_HEAD_END
 
 void example_task_callback(daxa::TaskInterface ti)
 {
-    auto const & AI = ExampleTaskHead::ATTACHMENT_INDICES;
+    auto const & AI = ExampleTaskHead::Info::AT;
 
     // There are two ways to get the info for any attachment:
     {
@@ -36,7 +36,6 @@ void example_task_callback(daxa::TaskInterface ti)
         [[maybe_unused]] daxa::ImageViewType view_type = ti.get(AI.image0).view_type;
         [[maybe_unused]] u8 shader_array_size = ti.get(AI.image0).shader_array_size;
         [[maybe_unused]] daxa::TaskHeadImageArrayType shader_array_type = ti.get(AI.image0).shader_array_type;
-        [[maybe_unused]] daxa::ImageLayout layout = ti.get(AI.image0).layout;
         [[maybe_unused]] daxa::TaskImageView view = ti.get(AI.image0).view;
         [[maybe_unused]] std::span<daxa::ImageId const> ids = ti.get(AI.image0).ids;
         [[maybe_unused]] std::span<daxa::ImageViewId const> view_ids = ti.get(AI.image0).view_ids;
@@ -120,14 +119,14 @@ namespace tests
         int i = 5;
 
         auto old_task_syntax = OldTaskHeadSyntaxTask{
+            .f = f,
+            .i = i,
             .views = OldTaskHeadSyntaxTask::Views{
                 .buffer0 = {},
                 .image0 = {},
                 .image1 = {},
                 .test_buffer_no_shader = {},
             },
-            .f = f,
-            .i = i,
         };
 
         daxa::TaskBufferView cmd_view = daxa::NullTaskBuffer;
@@ -248,7 +247,7 @@ namespace tests
         auto timg_view_l1 = task_image.layers(1);
         task_graph.add_task(
             daxa::InlineTask::Compute("read image array layer 1")
-                .samples(timg_view_l1)
+                .reads(timg_view_l1)
                 .executes([](daxa::TaskInterface) {}));
         task_graph.complete({});
         task_graph.execute({});
@@ -326,7 +325,7 @@ namespace tests
             // CREATE IMAGE
             task_graph.use_persistent_image(task_image);
             task_graph.add_task(daxa::InlineTask::Compute("read image layer 1")
-                                    .samples(task_image.view().layers(1))
+                                    .reads(task_image.view().layers(1))
                                     .executes([](daxa::TaskInterface) {}));
             task_graph.add_task(daxa::InlineTask::Compute("write image layer 1")
                                     .writes(task_image.view().layers(0))
@@ -365,7 +364,7 @@ namespace tests
             },
             daxa::ImageSliceState{
                 .latest_access = daxa::AccessConsts::COMPUTE_SHADER_READ,
-                .latest_layout = daxa::ImageLayout::READ_ONLY_OPTIMAL,
+                .latest_layout = daxa::ImageLayout::GENERAL,
                 .slice = {.base_array_layer = 2, .layer_count = 2},
             }};
         auto task_image = daxa::TaskImage({
@@ -384,8 +383,8 @@ namespace tests
 
             task_graph.use_persistent_image(task_image);
 
-            task_graph.add_task(daxa::InlineTask::Compute("samples image layer 1")
-                                    .samples(task_image.view().layers(1))
+            task_graph.add_task(daxa::InlineTask::Compute("reads image layer 1")
+                                    .reads(task_image.view().layers(1))
                                     .executes([](daxa::TaskInterface) {}));
 
             task_graph.add_task(daxa::InlineTask::Compute("write image layer 3")
@@ -397,7 +396,7 @@ namespace tests
                                     .executes([](daxa::TaskInterface) {}));
 
             task_graph.add_task(daxa::InlineTask::Compute("read image layer 0 - 3")
-                                    .samples(task_image.view().layers(0, 4))
+                                    .reads(task_image.view().layers(0, 4))
                                     .executes([](daxa::TaskInterface) {}));
 
             task_graph.complete({});
@@ -474,7 +473,7 @@ namespace tests
         struct WriteImage : ShaderIntegrationTaskHead::Task
         {
             AttachmentViews views = {};
-            std::shared_ptr<daxa::ComputePipeline> pipeline = {};
+            daxa::ComputePipeline* pipeline = {};
             void callback(daxa::TaskInterface ti)
             {
                 ti.recorder.set_pipeline(*pipeline);
@@ -488,14 +487,14 @@ namespace tests
                 .settings = task_buffer.view(),
                 .image = task_image.view(),
             },
-            .pipeline = compute_pipeline,
+            .pipeline = compute_pipeline.get(),
         });
         task_graph.add_task(WriteImage{
             .views = WriteImage::Views{
                 .settings = task_buffer.view(),
                 .image = task_image.view(),
             },
-            .pipeline = compute_pipeline,
+            .pipeline = compute_pipeline.get(),
         });
         task_graph.submit({});
 
@@ -954,7 +953,7 @@ namespace tests
 
         task_graph.add_task(
             daxa::InlineTask::Compute("read image 1")
-                .samples(task_image)
+                .reads(task_image)
                 .executes([](daxa::TaskInterface) {}));
 
         task_graph.complete({});
@@ -965,6 +964,17 @@ namespace tests
 
 auto main() -> i32
 {
+    std::array dd = {1,2,3,4,5,6,7,8};
+    int i = 0;
+    daxa::TaskCallback f;
+    auto l = [=](daxa::TaskInterface ti) { printf("test: %i\n", dd[0]); };
+    f.store(l);
+
+    daxa::Device d;
+    daxa::CommandRecorder r;
+    daxa::TaskInterface t(d,r);
+    f.execute(t);
+
     tests::head_task_syntax();
     tests::concurrent_read_on_read();
     tests::read_on_readwriteconcurrent();

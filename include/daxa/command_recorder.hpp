@@ -26,9 +26,9 @@ namespace daxa
     struct ImageBlitInfo
     {
         ImageId src_image = {};
-        ImageLayout src_image_layout = ImageLayout::TRANSFER_SRC_OPTIMAL;
+        [[deprecated("Ignored parameter, layout must be GENERAL; API:3.2")]] ImageLayout src_image_layout = ImageLayout::GENERAL;
         ImageId dst_image = {};
-        ImageLayout dst_image_layout = ImageLayout::TRANSFER_DST_OPTIMAL;
+        [[deprecated("Ignored parameter, layout must be GENERAL; API:3.2")]] ImageLayout dst_image_layout = ImageLayout::GENERAL;
         ImageArraySlice src_slice = {};
         std::array<Offset3D, 2> src_offsets = {};
         ImageArraySlice dst_slice = {};
@@ -50,7 +50,7 @@ namespace daxa
         BufferId buffer = {};
         usize buffer_offset = {};
         ImageId image = {};
-        ImageLayout image_layout = ImageLayout::TRANSFER_DST_OPTIMAL;
+        [[deprecated("Ignored parameter, layout must be GENERAL; API:3.2")]] ImageLayout image_layout = ImageLayout::GENERAL;
         ImageArraySlice image_slice = {};
         Offset3D image_offset = {};
         Extent3D image_extent = {};
@@ -59,7 +59,7 @@ namespace daxa
     struct ImageBufferCopyInfo
     {
         ImageId image = {};
-        ImageLayout image_layout = ImageLayout::TRANSFER_SRC_OPTIMAL;
+        [[deprecated("Ignored parameter, layout must be GENERAL; API:3.2")]] ImageLayout image_layout = ImageLayout::GENERAL;
         ImageArraySlice image_slice = {};
         Offset3D image_offset = {};
         Extent3D image_extent = {};
@@ -70,9 +70,9 @@ namespace daxa
     struct ImageCopyInfo
     {
         ImageId src_image = {};
-        ImageLayout src_image_layout = daxa::ImageLayout::TRANSFER_SRC_OPTIMAL;
+        [[deprecated("Ignored parameter, layout must be GENERAL; API:3.2")]] ImageLayout src_image_layout = daxa::ImageLayout::GENERAL;
         ImageId dst_image = {};
-        ImageLayout dst_image_layout = daxa::ImageLayout::TRANSFER_DST_OPTIMAL;
+        [[deprecated("Ignored parameter, layout must be GENERAL; API:3.2")]] ImageLayout dst_image_layout = daxa::ImageLayout::GENERAL;
         ImageArraySlice src_slice = {};
         Offset3D src_offset = {};
         ImageArraySlice dst_slice = {};
@@ -82,7 +82,7 @@ namespace daxa
 
     struct ImageClearInfo
     {
-        ImageLayout dst_image_layout = daxa::ImageLayout::TRANSFER_DST_OPTIMAL;
+        [[deprecated("Ignored parameter, layout must be GENERAL; API:3.2")]] ImageLayout dst_image_layout = daxa::ImageLayout::GENERAL;
         ClearValue clear_value = {};
         ImageId dst_image = {};
         ImageMipArraySlice dst_slice = {};
@@ -109,13 +109,13 @@ namespace daxa
     {
         ResolveMode mode = ResolveMode::AVERAGE;
         ImageViewId image = {};
-        ImageLayout layout = ImageLayout::ATTACHMENT_OPTIMAL;
+        [[deprecated("Ignored parameter, layout must be GENERAL; API:3.2")]] ImageLayout layout = ImageLayout::GENERAL;
     };
 
     struct RenderAttachmentInfo
     {
         ImageViewId image_view = {};
-        ImageLayout layout = ImageLayout::ATTACHMENT_OPTIMAL;
+        [[deprecated("Ignored parameter, layout must be GENERAL; API:3.2")]] ImageLayout layout = ImageLayout::GENERAL;
         AttachmentLoadOp load_op = AttachmentLoadOp::DONT_CARE;
         AttachmentStoreOp store_op = AttachmentStoreOp::STORE;
         ClearValue clear_value = {};
@@ -251,15 +251,6 @@ namespace daxa
         SmallString name = {};
     };
 
-    struct SetUniformBufferInfo
-    {
-        // Binding slot the buffer will be bound to.
-        u32 slot = {};
-        BufferId buffer = {};
-        usize size = {};
-        usize offset = {};
-    };
-
     struct DepthBiasInfo
     {
         f32 constant_factor = {};
@@ -385,15 +376,19 @@ namespace daxa
         /// @brief  Successive pipeline barrier calls are combined.
         ///         As soon as a non-pipeline barrier command is recorded, the currently recorded barriers are flushed with a vkCmdPipelineBarrier2 call.
         /// @param info parameters.
-        void pipeline_barrier(MemoryBarrierInfo const & info);
+        void pipeline_barrier(BarrierInfo const & info);
         /// @brief  Successive pipeline barrier calls are combined.
         ///         As soon as a non-pipeline barrier command is recorded, the currently recorded barriers are flushed with a vkCmdPipelineBarrier2 call.
         /// @param info parameters.
-        void pipeline_barrier_image_transition(ImageMemoryBarrierInfo const & info);
+        void pipeline_image_barrier(ImageBarrierInfo const & info);
         void signal_event(EventSignalInfo const & info);
         void wait_events(daxa::Span<EventWaitInfo const> const & infos);
         void wait_event(EventWaitInfo const & info);
         void reset_event(ResetEventInfo const & info);
+
+#if !DAXA_REMOVE_DEPRECATED
+        [[deprecated("Use pipeline_image_barrier instead, API:3.2")]] void pipeline_barrier_image_transition(ImageMemoryBarrierInfo const & info);
+#endif
 
         /// @brief  Destroys the buffer AFTER the gpu is finished executing the command list.
         ///         Zombifies object after submitting the commands.

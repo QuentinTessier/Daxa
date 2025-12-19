@@ -2,10 +2,9 @@
 
 #include "impl_core.hpp"
 
-#include "impl_instance.hpp"
+#include "impl_sync.hpp"
 #include "impl_command_recorder.hpp"
 #include "impl_pipeline.hpp"
-#include "impl_swapchain.hpp"
 #include "impl_gpu_resources.hpp"
 #include "impl_timeline_query.hpp"
 #include "impl_features.hpp"
@@ -13,6 +12,7 @@
 #include <daxa/c/device.h>
 
 #include <atomic>
+#include <mutex>
 
 using namespace daxa;
 
@@ -50,7 +50,6 @@ struct daxa_ImplDevice final : public ImplHandle
     PFN_vkCmdDrawMeshTasksEXT vkCmdDrawMeshTasksEXT = {};
     PFN_vkCmdDrawMeshTasksIndirectEXT vkCmdDrawMeshTasksIndirectEXT = {};
     PFN_vkCmdDrawMeshTasksIndirectCountEXT vkCmdDrawMeshTasksIndirectCountEXT = {};
-    VkPhysicalDeviceMeshShaderPropertiesEXT mesh_shader_properties = {};
 
     // Ray tracing:
     PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR = {};
@@ -87,7 +86,7 @@ struct daxa_ImplDevice final : public ImplHandle
 
     // Command Buffer/Pool recycling:
     // Index with daxa_QueueFamily.
-    std::array<CommandPoolPool, 3> command_pool_pools = {};
+    ImplTransientCommandArenas commands = {};
 
     // Gpu Shader Resource Object table:
     GPUShaderResourceTable gpu_sro_table = {};
@@ -99,7 +98,7 @@ struct daxa_ImplDevice final : public ImplHandle
     // If the zombies global submit index is smaller then global index of all submits currently in flight (on all queues), we can safely clean the resource up.
     std::atomic_uint64_t global_submit_timeline = {};
     std::recursive_mutex zombies_mtx = {};
-    std::deque<std::pair<u64, CommandRecorderZombie>> command_list_zombies = {};
+    std::deque<std::pair<u64, ImplTransientCommandArena*>> command_zombies = {};
     std::deque<std::pair<u64, BufferId>> buffer_zombies = {};
     std::deque<std::pair<u64, ImageId>> image_zombies = {};
     std::deque<std::pair<u64, ImageViewId>> image_view_zombies = {};
@@ -143,6 +142,7 @@ struct daxa_ImplDevice final : public ImplHandle
 
     struct ImplQueueFamily
     {
+        u32 vk_queue_family_index = {};
         u32 queue_count = {};
         u32 vk_index = ~0u;
     };
@@ -162,6 +162,13 @@ struct daxa_ImplDevice final : public ImplHandle
     auto slot(daxa_TlasId id) const -> ImplTlasSlot const &;
     auto slot(daxa_BlasId id) const -> ImplBlasSlot const &;
 
+    auto hot_slot(daxa_BufferId id) const -> ImplBufferSlot::HotData const &;
+    auto hot_slot(daxa_ImageId id) const -> ImplImageSlot::HotData const &;
+    auto hot_slot(daxa_ImageViewId id) const -> ImplImageViewSlot::HotData const &;
+    auto hot_slot(daxa_SamplerId id) const -> ImplSamplerSlot::HotData const &;
+    auto hot_slot(daxa_TlasId id) const -> ImplTlasSlot::HotData const &;
+    auto hot_slot(daxa_BlasId id) const -> ImplBlasSlot::HotData const &;
+
     void cleanup_buffer(BufferId id);
     void cleanup_image(ImageId id);
     void cleanup_image_view(ImageViewId id);
@@ -176,7 +183,7 @@ struct daxa_ImplDevice final : public ImplHandle
     void zombify_tlas(TlasId id);
     void zombify_blas(BlasId id);
 
-    static auto create_2(daxa_Instance instance, daxa_DeviceInfo2 const & info, ImplPhysicalDevice const & physical_device, daxa_DeviceProperties const & properties, daxa_Device device) -> daxa_Result;
+    static auto create_2(daxa_Instance instance, daxa_DeviceInfo2 const & info, struct ImplPhysicalDevice const & physical_device, daxa_DeviceProperties const & properties, daxa_Device device) -> daxa_Result;
     static auto create(daxa_Instance instance, daxa_DeviceInfo const & info, VkPhysicalDevice physical_device, daxa_Device device) -> daxa_Result;
     static void zero_ref_callback(ImplHandle const * handle);
 };

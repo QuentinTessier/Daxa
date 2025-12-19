@@ -10,7 +10,7 @@
 🛠️ Shader Build system, shader integration and host/shader code sharing utils  
 🧩 Convenient, efficient TaskGraph rendering framework
 
-Daxa is a Vulkan-powered GPU abstraction purpose-built for modern graphics cards (>Turing, >RDNA, >Arc). Its streamlined design is *directly informed by the capabilities and assumptions of modern architectures*—delivering simplicity, deep shader integration, and predictable performance without legacy compromises.
+Daxa is a Vulkan-powered GPU abstraction purpose-built for modern graphics cards (NVIDIA: >=Turing, AMD: >=RDNA3, INTEL: >=Arc). The simplifications and abstractions are done to specifically remove all those api details that no longer matter on modern hardware.
 
 Other than the focus on modern architecture only, what makes Daxa unique?
 
@@ -42,11 +42,11 @@ Other than the focus on modern architecture only, what makes Daxa unique?
 
 ## Getting started
 
-To begin using Daxa, visit [daxa.dev](https://daxa.dev/), where you'll find a comprehensive tutorial and a Wiki containing detailed information about the Daxa API.
+To begin using Daxa, visit [docs.daxa.dev](https://docs.daxa.dev/), where you'll find a comprehensive tutorial and a Wiki containing detailed information about the Daxa API.
 
-- [Daxa Tutorial](https://tutorial.daxa.dev/)
-- [Daxa Wiki](https://wiki.daxa.dev/)
+* [Daxa Tutorial](https://docs.daxa.dev/tutorial/)
+* [Daxa Wiki](https://docs.daxa.dev/wiki/)
 
-Additionally, the Daxa repository includes a collection of example projects located in the **tests** folder
+Additionally, the Daxa repository includes a collection of example projects located in the **tests** folder.
 
 Working on something with Daxa? Whether it's a renderer, a tool, or just a small experiment—feel free to share it or ask questions on the [Discord server](https://discord.gg/MJPJvZ4FK5). It’s a good place to connect with others using Daxa and stay up to date with ongoing work.

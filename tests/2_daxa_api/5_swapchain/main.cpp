@@ -64,7 +64,7 @@ namespace tests
                 else
                 {
                     using namespace std::literals;
-                    std::this_thread::sleep_for(1ms);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
                 }
 
                 return false;
@@ -81,24 +81,21 @@ namespace tests
                     .name = ("recorder (clearcolor)"),
                 });
 
-                recorder.pipeline_barrier_image_transition({
+                recorder.pipeline_image_barrier({
                     .dst_access = daxa::AccessConsts::TRANSFER_WRITE,
-                    .src_layout = daxa::ImageLayout::UNDEFINED,
-                    .dst_layout = daxa::ImageLayout::TRANSFER_DST_OPTIMAL,
                     .image_id = swapchain_image,
+                    .layout_operation = daxa::ImageLayoutOperation::TO_GENERAL,
                 });
 
                 recorder.clear_image({
-                    .dst_image_layout = daxa::ImageLayout::TRANSFER_DST_OPTIMAL,
                     .clear_value = {std::array<f32, 4>{1, 0, 1, 1}},
                     .dst_image = swapchain_image,
                 });
 
-                recorder.pipeline_barrier_image_transition({
+                recorder.pipeline_image_barrier({
                     .src_access = daxa::AccessConsts::TRANSFER_WRITE,
-                    .src_layout = daxa::ImageLayout::TRANSFER_DST_OPTIMAL,
-                    .dst_layout = daxa::ImageLayout::PRESENT_SRC,
                     .image_id = swapchain_image,
+                    .layout_operation = daxa::ImageLayoutOperation::TO_PRESENT_SRC,
                 });
 
                 auto executalbe_commands = recorder.complete_current_commands();

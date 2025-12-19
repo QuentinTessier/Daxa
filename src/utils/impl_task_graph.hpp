@@ -1,12 +1,18 @@
 #pragma once
 
+#define ENABLE_TASK_GRAPH_MK2 0
+
+#if ENABLE_TASK_GRAPH_MK2
+#include "impl_task_graph_mk2.hpp"
+#else
+
 #include "../impl_core.hpp"
 
 #include <variant>
 #include <sstream>
 #include <daxa/utils/task_graph.hpp>
+#include <format>
 
-#include "impl_task_graph_mk2.hpp"
 
 #define DAXA_TASK_GRAPH_MAX_CONDITIONALS 5
 
@@ -110,8 +116,8 @@ namespace daxa
         /// This boolean is used to check this.
         bool valid = {};
         bool swapchain_semaphore_waited_upon = {};
-        DynamicArenaArray8k<ExtendedImageSliceState> last_slice_states = {};
-        DynamicArenaArray8k<ExtendedImageSliceState> first_slice_states = {};
+        ArenaDynamicArray8k<ExtendedImageSliceState> last_slice_states = {};
+        ArenaDynamicArray8k<ExtendedImageSliceState> first_slice_states = {};
         // only for transient images
         ResourceLifetime lifetime = {};
         ImageCreateFlags create_flags = ImageCreateFlagBits::NONE;
@@ -141,8 +147,8 @@ namespace daxa
 
     struct ImplTask
     {
-        OpaqueTaskPtr task_memory = {nullptr, [](void*){}};
-        OpaqueTaskCallback task_callback = [](void*, TaskInterface &){};
+        void (*task_callback)(daxa::TaskInterface, void*) = {};
+        u64* task_callback_memory = {};                             // holds captured variables
         std::span<TaskAttachmentInfo> attachments = {};
         u32 attachment_shader_blob_size = {};
         u32 attachment_shader_blob_alignment = {};
@@ -151,7 +157,7 @@ namespace daxa
         Queue queue = {};
         std::span<std::span<ImageViewId>> image_view_cache = {};
         // Used to verify image view cache:
-        std::span<DynamicArenaArray8k<ImageId>> runtime_images_last_execution = {};
+        std::span<ArenaDynamicArray8k<ImageId>> runtime_images_last_execution = {};
     };
 
     struct ImplPresentInfo
@@ -162,18 +168,18 @@ namespace daxa
 
     struct TaskBatch
     {
-        DynamicArenaArray8k<usize> pipeline_barrier_indices = {};
-        DynamicArenaArray8k<usize> wait_split_barrier_indices = {};
-        DynamicArenaArray8k<TaskId> tasks = {};
-        DynamicArenaArray8k<usize> signal_split_barrier_indices = {};
+        ArenaDynamicArray8k<usize> pipeline_barrier_indices = {};
+        ArenaDynamicArray8k<usize> wait_split_barrier_indices = {};
+        ArenaDynamicArray8k<TaskId> tasks = {};
+        ArenaDynamicArray8k<usize> signal_split_barrier_indices = {};
     };
 
     struct QueueSubmitScope
     {
         // These barriers are inserted after all batches and their sync.
-        DynamicArenaArray8k<usize> last_minute_barrier_indices = {};
-        DynamicArenaArray8k<TaskBatch> task_batches = {};
-        DynamicArenaArray8k<u64> used_swapchain_task_images = {};
+        ArenaDynamicArray8k<usize> last_minute_barrier_indices = {};
+        ArenaDynamicArray8k<TaskBatch> task_batches = {};
+        ArenaDynamicArray8k<u64> used_swapchain_task_images = {};
         std::optional<ImplPresentInfo> present_info = {};
     };
 
@@ -195,11 +201,11 @@ namespace daxa
         bool active = {};
         // persistent information:
         TaskImageView swapchain_image = {};
-        DynamicArenaArray8k<PerPermTaskBuffer> buffer_infos = {};
-        DynamicArenaArray8k<PerPermTaskImage> image_infos = {};
+        ArenaDynamicArray8k<PerPermTaskBuffer> buffer_infos = {};
+        ArenaDynamicArray8k<PerPermTaskImage> image_infos = {};
         std::vector<TaskSplitBarrier> split_barriers = {};
-        DynamicArenaArray8k<TaskBarrier> barriers = {};
-        DynamicArenaArray8k<usize> initial_barriers = {};
+        ArenaDynamicArray8k<TaskBarrier> barriers = {};
+        ArenaDynamicArray8k<usize> initial_barriers = {};
         // TODO(msakmary, pahrens) - Instead of storing batch submit scopes which contain batches
         // we should make a vector of batches which and a second vector of submit scopes which are
         // just offsets into the batches vector
@@ -269,7 +275,7 @@ namespace daxa
 
     struct PermIndepTaskBufferInfo
     {
-        struct Persistent
+        struct External
         {
             std::variant<TaskBuffer, TaskBlas, TaskTlas> buffer_blas_tlas = {};
 
@@ -288,44 +294,31 @@ namespace daxa
                 return *ret;
             }
         };
-        struct Transient
+        struct Owned
         {
             TaskAttachmentType type = {};
             TaskTransientBufferInfo info = {};
         };
-        Variant<Persistent, Transient> task_buffer_data;
+        Variant<External, Owned> task_buffer_data;
+        std::string_view name = {};
 
-        inline auto get_name() const -> std::string_view
+        inline auto get_external() -> ImplPersistentTaskBufferBlasTlas &
         {
-            if (is_persistent())
-            {
-                std::string_view ret = {};
-                std::visit([&](auto const & info)
-                           { ret = info.name; }, get_persistent().info);
-                return ret;
-            }
-            else
-            {
-                return daxa::get<Transient>(task_buffer_data).info.name;
-            }
+            return daxa::get<External>(task_buffer_data).get();
         }
-        inline auto get_persistent() -> ImplPersistentTaskBufferBlasTlas &
+        inline auto get_external() const -> ImplPersistentTaskBufferBlasTlas const &
         {
-            return daxa::get<Persistent>(task_buffer_data).get();
+            return daxa::get<External>(task_buffer_data).get();
         }
-        inline auto get_persistent() const -> ImplPersistentTaskBufferBlasTlas const &
+        inline auto is_external() const -> bool
         {
-            return daxa::get<Persistent>(task_buffer_data).get();
-        }
-        inline auto is_persistent() const -> bool
-        {
-            return daxa::holds_alternative<Persistent>(task_buffer_data);
+            return daxa::holds_alternative<External>(task_buffer_data);
         }
     };
 
     struct PermIndepTaskImageInfo
     {
-        struct Persistent
+        struct External
         {
             TaskImage image = {};
             auto get() -> ImplPersistentTaskImage &
@@ -337,34 +330,26 @@ namespace daxa
                 return **r_cast<ImplPersistentTaskImage const * const *>(&image);
             }
         };
-        struct Transient
+        struct Owned
         {
             TaskTransientImageInfo info = {};
+            // When the resource is temporal we have to store the in-between-runs state of the resource
+            
         };
-        Variant<Persistent, Transient> task_image_data;
+        Variant<External, Owned> task_image_data;
+        std::string_view name = {};
 
-        inline auto get_name() const -> std::string_view
+        inline auto get_external() -> ImplPersistentTaskImage &
         {
-            if (is_persistent())
-            {
-                return get_persistent().info.name;
-            }
-            else
-            {
-                return daxa::get<Transient>(task_image_data).info.name;
-            }
+            return daxa::get<External>(task_image_data).get();
         }
-        inline auto get_persistent() -> ImplPersistentTaskImage &
+        inline auto get_external() const -> ImplPersistentTaskImage const &
         {
-            return daxa::get<Persistent>(task_image_data).get();
+            return daxa::get<External>(task_image_data).get();
         }
-        inline auto get_persistent() const -> ImplPersistentTaskImage const &
+        inline auto is_external() const -> bool
         {
-            return daxa::get<Persistent>(task_image_data).get();
-        }
-        inline auto is_persistent() const -> bool
-        {
-            return daxa::holds_alternative<Persistent>(task_image_data);
+            return daxa::holds_alternative<External>(task_image_data);
         }
     };
 
@@ -390,12 +375,12 @@ namespace daxa
 
         TaskGraphInfo info;
 
-        ImplTaskGraphMk2 mk2;
+        MemoryArena task_memory = {};
 
         std::vector<PermIndepTaskBufferInfo> global_buffer_infos = {};
         std::vector<PermIndepTaskImageInfo> global_image_infos = {};
         std::vector<TaskGraphPermutation> permutations = {};
-        std::vector<ImplTask> tasks = {};
+        ArenaDynamicArray8k<ImplTask> tasks = {};
         // TODO: replace with faster hash map.
         std::unordered_map<u32, u32> persistent_buffer_index_to_local_index;
         std::unordered_map<u32, u32> persistent_image_index_to_local_index;
@@ -410,7 +395,7 @@ namespace daxa
         std::unordered_map<std::string_view, TaskImageView> image_name_to_id = {};
 
         // Are executed in a pre-submission, before any actual task recording/submission.
-        DynamicArenaArray8k<TaskBarrier> setup_task_barriers = {};
+        ArenaDynamicArray8k<TaskBarrier> setup_task_barriers = {};
 
         usize memory_block_size = {};
         u32 memory_type_bits = 0xFFFFFFFFu;
@@ -441,11 +426,11 @@ namespace daxa
                 return NULL_ID_ARRAY;
             }
             auto const & global_buffer = global_buffer_infos.at(id.index);
-            if (global_buffer.is_persistent())
+            if (global_buffer.is_external())
             {
                 return std::span{
-                    std::get<std::vector<typename TaskIdT::ID_T>>(global_buffer.get_persistent().actual_ids).data(),
-                    std::get<std::vector<typename TaskIdT::ID_T>>(global_buffer.get_persistent().actual_ids).size(),
+                    std::get<std::vector<typename TaskIdT::ID_T>>(global_buffer.get_external().actual_ids).data(),
+                    std::get<std::vector<typename TaskIdT::ID_T>>(global_buffer.get_external().actual_ids).size(),
                 };
             }
             else
@@ -468,11 +453,11 @@ namespace daxa
                 return std::span{NULL_ID_ARRAY.data(), NULL_ID_ARRAY.size()};
             }
             auto const & global_buffer = global_buffer_infos.at(id.index);
-            if (global_buffer.is_persistent())
+            if (global_buffer.is_external())
             {
                 GetActualIdsVariant ret = std::span{NULL_ID_ARRAY.data(), NULL_ID_ARRAY.size()};
                 std::visit([&](auto const & ids)
-                           { ret = std::span{ids.data(), ids.size()}; }, global_buffer.get_persistent().actual_ids);
+                           { ret = std::span{ids.data(), ids.size()}; }, global_buffer.get_external().actual_ids);
                 return ret;
             }
             else
@@ -494,9 +479,9 @@ namespace daxa
             }
             static constexpr std::string_view names[3] = {"buffer", "blas", "tlas"};
             auto const & global_buffer = global_buffer_infos.at(id.index);
-            if (global_buffer.is_persistent())
+            if (global_buffer.is_external())
             {
-                return names[global_buffer.get_persistent().actual_ids.index()];
+                return names[global_buffer.get_external().actual_ids.index()];
             }
             else
             {
@@ -512,7 +497,7 @@ namespace daxa
             if (id.is_null())
                 return id;
             DAXA_DBG_ASSERT_TRUE_M(!id.is_empty(), "Detected empty task buffer id. Please make sure to only use initialized task buffer ids.");
-            if (id.is_persistent())
+            if (id.is_external())
             {
                 DAXA_DBG_ASSERT_TRUE_M(
                     persistent_buffer_index_to_local_index.contains(id.index),
@@ -553,3 +538,4 @@ namespace daxa
     };
 
 } // namespace daxa
+#endif

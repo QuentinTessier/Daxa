@@ -165,6 +165,13 @@ typedef struct
     uint32_t invocation_reorder_mode;
 } daxa_RayTracingInvocationReorderProperties;
 
+// Is NOT ABI Compatible with VkPhysicalDeviceHostImageCopyProperties!
+typedef struct
+{
+    uint8_t optimal_tiling_layout_uuid[16U];
+    daxa_Bool8 identical_memory_type_requirements;
+} daxa_HostImageCopyProperties;
+
 // Is NOT ABI Compatible with VkPhysicalDeviceMeshShaderPropertiesEXT!
 typedef struct
 {
@@ -236,7 +243,6 @@ typedef enum
     DAXA_MISSING_REQUIRED_VK_FEATURE_SUBGROUP_SIZE_CONTROL,
     DAXA_MISSING_REQUIRED_VK_FEATURE_COMPUTE_FULL_SUBGROUPS,
     DAXA_MISSING_REQUIRED_VK_FEATURE_SCALAR_BLOCK_LAYOUT,
-    DAXA_MISSING_REQUIRED_VK_FEATURE_HOST_IMAGE_COPY,
     DAXA_MISSING_REQUIRED_VK_FEATURE_ACCELERATION_STRUCTURE_CAPTURE_REPLAY,
     DAXA_MISSING_REQUIRED_VK_FEATURE_VULKAN_MEMORY_MODEL,
     DAXA_MISSING_REQUIRED_VK_FEATURE_ROBUST_BUFFER_ACCESS2,
@@ -251,6 +257,7 @@ typedef enum
     DAXA_EXPLICIT_FEATURE_FLAG_ACCELERATION_STRUCTURE_CAPTURE_REPLAY = 0x1 << 1,
     DAXA_EXPLICIT_FEATURE_FLAG_VK_MEMORY_MODEL = 0x1 << 2,
     DAXA_EXPLICIT_FEATURE_FLAG_ROBUSTNESS_2 = 0x1 << 3,
+    DAXA_EXPLICIT_FEATURE_FLAG_PIPELINE_LIBRARY_GROUP_HANDLES = 0x1 << 4,
 } daxa_DeviceExplicitFeatureFlagBits;
 
 typedef daxa_DeviceExplicitFeatureFlagBits daxa_ExplicitFeatureFlags;
@@ -273,6 +280,8 @@ typedef enum
     DAXA_IMPLICIT_FEATURE_FLAG_SWAPCHAIN = 0x1 << 12,
     DAXA_IMPLICIT_FEATURE_FLAG_SHADER_INT16 = 0x1 << 13,
     DAXA_IMPLICIT_FEATURE_FLAG_SHADER_CLOCK = 0x1 << 14,
+    DAXA_IMPLICIT_FEATURE_FLAG_HOST_IMAGE_COPY = 0x1 << 15,
+    DAXA_IMPLICIT_FEATURE_FLAG_LINE_RASTERIZATION = 0x1 << 16,
 } daxa_DeviceImplicitFeatureFlagBits;
 
 typedef daxa_DeviceImplicitFeatureFlagBits daxa_ImplicitFeatureFlags;
@@ -291,6 +300,8 @@ typedef struct
     daxa_Optional(daxa_RayTracingPipelineProperties) ray_tracing_pipeline_properties;
     daxa_Optional(daxa_AccelerationStructureProperties) acceleration_structure_properties;
     daxa_Optional(daxa_RayTracingInvocationReorderProperties) ray_tracing_invocation_reorder_properties;
+    daxa_Optional(daxa_HostImageCopyProperties) host_image_copy_properties;
+    daxa_u32 required_subgroup_size_stages;
     daxa_u32 compute_queue_count;
     daxa_u32 transfer_queue_count;
     daxa_ImplicitFeatureFlags implicit_features;
@@ -517,9 +528,9 @@ typedef enum
 typedef struct
 {
     daxa_MemoryImageCopyFlagBits flags;
-    uint8_t const* memory_ptr;
+    uint8_t const * memory_ptr;
     daxa_ImageId image_id;
-    daxa_ImageLayout image_layout;
+    /*[[deprecated("Ignored parameter, layout must be GENERAL; API:3.2")]] */ daxa_ImageLayout image_layout;
     daxa_ImageArraySlice image_slice;
     VkOffset3D image_offset;
     VkExtent3D image_extent;
@@ -532,15 +543,17 @@ typedef struct
 {
     daxa_MemoryImageCopyFlagBits flags;
     daxa_ImageId image_id;
-    daxa_ImageLayout image_layout;
+    /*[[deprecated("Ignored parameter, layout must be GENERAL; API:3.2")]] */ daxa_ImageLayout image_layout;
     daxa_ImageArraySlice image_slice;
     VkOffset3D image_offset;
     VkExtent3D image_extent;
-    uint8_t* memory_ptr;
+    uint8_t * memory_ptr;
 } daxa_ImageToMemoryCopyInfo;
 
 static daxa_ImageToMemoryCopyInfo const DAXA_DEFAULT_IMAGE_TO_MEMORY_COPY_INFO = DAXA_ZERO_INIT;
 
+#if !DAXA_REMOVE_DEPRECATED
+/* deprecated("Use daxa_HostImageLayoutOperationInfo instead; API:3.2") */
 typedef struct
 {
     daxa_ImageId image_id;
@@ -550,6 +563,15 @@ typedef struct
 } daxa_HostImageLayoutTransitionInfo;
 
 static daxa_HostImageLayoutTransitionInfo const DAXA_DEFAULT_HOST_IMAGE_LAYOUT_TRANSITION_INFO = DAXA_ZERO_INIT;
+#endif
+
+typedef struct
+{
+    daxa_ImageId image_id;
+    daxa_ImageLayoutOperation layout_operation;
+} daxa_HostImageLayoutOperationInfo;
+
+static daxa_HostImageLayoutOperationInfo const DAXA_DEFAULT_HOST_IMAGE_LAYOUT_OPERATION_INFO = DAXA_ZERO_INIT;
 
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_device_memory_report(daxa_Device device, daxa_DeviceMemoryReport * report);
@@ -653,6 +675,8 @@ daxa_dvc_create_compute_pipeline(daxa_Device device, daxa_ComputePipelineInfo co
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_create_ray_tracing_pipeline(daxa_Device device, daxa_RayTracingPipelineInfo const * info, daxa_RayTracingPipeline * out_pipeline);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
+daxa_dvc_create_ray_tracing_pipeline_library(daxa_Device device, daxa_RayTracingPipelineInfo const * info, daxa_RayTracingPipelineLibrary * out_pipeline);
+DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_create_swapchain(daxa_Device device, daxa_SwapchainInfo const * info, daxa_Swapchain * out_swapchain);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_create_command_recorder(daxa_Device device, daxa_CommandRecorderInfo const * info, daxa_CommandRecorder * out_command_list);
@@ -669,13 +693,22 @@ DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_copy_memory_to_image(daxa_Device device, daxa_MemoryToImageCopyInfo const * info);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_copy_image_to_memory(daxa_Device device, daxa_ImageToMemoryCopyInfo const * info);
+
+#if !DAXA_REMOVE_DEPRECATED
+/* deprecated("Use image_layout_operation instead; API:3.2") */
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_transition_image_layout(daxa_Device device, daxa_HostImageLayoutTransitionInfo const * info);
+#endif
+
+DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
+daxa_dvc_image_layout_operation(daxa_Device device, daxa_HostImageLayoutOperationInfo const * info);
 
 DAXA_EXPORT VkDevice
 daxa_dvc_get_vk_device(daxa_Device device);
 DAXA_EXPORT VkPhysicalDevice
 daxa_dvc_get_vk_physical_device(daxa_Device device);
+DAXA_EXPORT daxa_Result
+daxa_dvc_get_vk_queue(daxa_Device self, daxa_Queue queue, VkQueue* vk_queue, uint32_t* vk_queue_family_index);
 
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_queue_wait_idle(daxa_Device device, daxa_Queue queue);

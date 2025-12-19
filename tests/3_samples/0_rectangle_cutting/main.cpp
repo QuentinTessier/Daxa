@@ -30,7 +30,7 @@ struct App : AppWindow<App>
     daxa::Swapchain swapchain = device.create_swapchain({
         .native_window = get_native_handle(),
         .native_window_platform = get_native_platform(),
-        .present_mode = daxa::PresentMode::IMMEDIATE,
+        .present_mode = daxa::PresentMode::FIFO,
         .image_usage = daxa::ImageUsageFlagBits::TRANSFER_DST,
         .name = ("swapchain"),
     });
@@ -256,11 +256,10 @@ struct App : AppWindow<App>
             .dst_access = daxa::AccessConsts::VERTEX_SHADER_READ,
         });
 
-        recorder.pipeline_barrier_image_transition({
+        recorder.pipeline_image_barrier({
             .dst_access = daxa::AccessConsts::COLOR_ATTACHMENT_OUTPUT_WRITE,
-            .src_layout = daxa::ImageLayout::UNDEFINED,
-            .dst_layout = daxa::ImageLayout::ATTACHMENT_OPTIMAL,
             .image_id = swapchain_image,
+            .layout_operation = daxa::ImageLayoutOperation::TO_GENERAL,
         });
 
         auto render_recorder = std::move(recorder).begin_renderpass({
@@ -282,11 +281,10 @@ struct App : AppWindow<App>
 
         imgui_renderer.record_commands(ImGui::GetDrawData(), recorder, swapchain_image, size_x, size_y);
 
-        recorder.pipeline_barrier_image_transition({
+        recorder.pipeline_image_barrier({
             .src_access = daxa::AccessConsts::ALL_GRAPHICS_READ_WRITE,
-            .src_layout = daxa::ImageLayout::ATTACHMENT_OPTIMAL,
-            .dst_layout = daxa::ImageLayout::PRESENT_SRC,
             .image_id = swapchain_image,
+            .layout_operation = daxa::ImageLayoutOperation::TO_PRESENT_SRC,
         });
 
         device.submit_commands({

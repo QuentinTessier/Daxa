@@ -57,16 +57,16 @@ namespace daxa
     {
         // Concurrent bit: 0
         // Read bit: 1
-        // Sampled bit: 2
-        // Write bit: 3
+        // Write bit: 2
         NONE = 0,
-        CONCURRENT_BIT = 1,
-        READ = (1 << 1) | CONCURRENT_BIT,
-        SAMPLED = 1 << 2 | CONCURRENT_BIT,
-        WRITE = 1 << 3,
-        READ_WRITE = (1 << 1) | (1 << 3),
+        CONCURRENT_BIT = (1 << 0),
+        NON_CONCURRENT_READ = (1 << 1),
+        READ = NON_CONCURRENT_READ | CONCURRENT_BIT,
+        WRITE = (1 << 2),
+        READ_WRITE = NON_CONCURRENT_READ | WRITE,
         WRITE_CONCURRENT = WRITE | CONCURRENT_BIT,
         READ_WRITE_CONCURRENT = READ_WRITE | CONCURRENT_BIT,
+        SAMPLED [[deprecated("Use READ instead, API:3.4")]] = READ,
     };
 
     auto to_access_type(TaskAccessType taccess) -> AccessTypeFlags;
@@ -121,13 +121,13 @@ namespace daxa
         static constexpr TaskAccess WRITE_CONCURRENT = TaskAccess{STAGE, TaskAccessType::WRITE_CONCURRENT, ATTACHMENT_TYPE_RESTRICTION};
         static constexpr TaskAccess READ_WRITE = TaskAccess{STAGE, TaskAccessType::READ_WRITE, ATTACHMENT_TYPE_RESTRICTION};
         static constexpr TaskAccess READ_WRITE_CONCURRENT = TaskAccess{STAGE, TaskAccessType::READ_WRITE_CONCURRENT, ATTACHMENT_TYPE_RESTRICTION};
-        static constexpr TaskAccess SAMPLED = TaskAccess{STAGE, TaskAccessType::SAMPLED, TaskAttachmentType::IMAGE};
+        [[deprecated("Use READ instead, API:3.4")]] static constexpr TaskAccess SAMPLED = READ;
         static constexpr TaskAccess R = READ;
         static constexpr TaskAccess W = WRITE;
         static constexpr TaskAccess WC = WRITE_CONCURRENT;
         static constexpr TaskAccess RW = READ_WRITE_CONCURRENT;
         static constexpr TaskAccess RWC = READ_WRITE_CONCURRENT;
-        static constexpr TaskAccess S = SAMPLED;
+        [[deprecated("Use READ instead, API:3.4")]] static constexpr TaskAccess S = SAMPLED;
     };
 
     struct TaskAccessConsts
@@ -173,15 +173,15 @@ namespace daxa
         static constexpr TaskAccess WRITE_CONCURRENT = TaskAccess{TaskStage::NONE, TaskAccessType::WRITE_CONCURRENT};
         static constexpr TaskAccess READ_WRITE = TaskAccess{TaskStage::NONE, TaskAccessType::READ_WRITE};
         static constexpr TaskAccess READ_WRITE_CONCURRENT = TaskAccess{TaskStage::NONE, TaskAccessType::READ_WRITE_CONCURRENT};
-        static constexpr TaskAccess SAMPLED = TaskAccess{TaskStage::NONE, TaskAccessType::SAMPLED, TaskAttachmentType::IMAGE};
+        [[deprecated("Use READ instead, API:3.4")]] static constexpr TaskAccess SAMPLED = READ;
 
         static constexpr TaskAccess COLOR_ATTACHMENT = TaskAccess{TaskStage::COLOR_ATTACHMENT, TaskAccessType::READ_WRITE, TaskAttachmentType::IMAGE};
         static constexpr TaskAccess CA = COLOR_ATTACHMENT;
 
         static constexpr TaskAccess DEPTH_ATTACHMENT = TaskAccessConsts::DSA::READ_WRITE;
         static constexpr TaskAccess STENCIL_ATTACHMENT = TaskAccessConsts::DSA::READ_WRITE;
-        static constexpr TaskAccess DEPTH_ATTACHMENT_READ = TaskAccessConsts::DSA::SAMPLED;
-        static constexpr TaskAccess STENCIL_ATTACHMENT_READ = TaskAccessConsts::DSA::SAMPLED;
+        static constexpr TaskAccess DEPTH_ATTACHMENT_READ = TaskAccessConsts::DSA::READ;
+        static constexpr TaskAccess STENCIL_ATTACHMENT_READ = TaskAccessConsts::DSA::READ;
 
         static constexpr TaskAccess PRESENT = TaskAccess{TaskStage::PRESENT, TaskAccessType::READ, TaskAttachmentType::IMAGE};
         static constexpr TaskAccess INDIRECT_COMMAND_READ = TaskAccess{TaskStage::INDIRECT_COMMAND, TaskAccessType::READ, TaskAttachmentType::BUFFER};
@@ -316,7 +316,7 @@ namespace daxa
 
     auto task_type_allowed_stages(TaskType task_type, TaskStage stage) -> bool;
 
-    auto task_type_default_stage(TaskType task_type) -> TaskStage;
+    DAXA_EXPORT_CXX auto task_type_default_stage(TaskType task_type) -> TaskStage;
 
     using TaskResourceIndex = u32;
 
@@ -326,7 +326,7 @@ namespace daxa
         TaskResourceIndex index = {};
 
         auto is_empty() const -> bool;
-        auto is_persistent() const -> bool;
+        auto is_external() const -> bool;
         auto is_null() const -> bool;
 
         auto operator<=>(TaskGPUResourceView const & other) const = default;
@@ -391,7 +391,7 @@ namespace daxa
         }
 
         auto is_empty() const -> bool { return operator TaskGPUResourceView const &().is_empty(); }
-        auto is_persistent() const -> bool { return operator TaskGPUResourceView const &().is_persistent(); }
+        auto is_external() const -> bool { return operator TaskGPUResourceView const &().is_external(); }
         auto is_null() const -> bool { return operator TaskGPUResourceView const &().is_null(); }
     };
 
@@ -643,6 +643,8 @@ namespace daxa
         char const * name = {};
         TaskAccess task_access = {};
         Access access = {};
+        u8 shader_array_size = {};
+        bool shader_as_address = {};
 
         TaskBlasView view = {};
         TaskBlasView translated_view = {};
@@ -658,6 +660,7 @@ namespace daxa
         char const * name = {};
         TaskAccess task_access = {};
         Access access = {};
+        u8 shader_array_size = {};
         bool shader_as_address = {};
 
         TaskTlasView view = {};
@@ -681,7 +684,7 @@ namespace daxa
 
         TaskImageView view = {};
         TaskImageView translated_view = {};
-        ImageLayout layout = {};
+        [[deprecated("Parameter Ignored, always layout general; API:3.2")]] ImageLayout layout = {};
         std::span<ImageId const> ids = {};
         std::span<ImageViewId const> view_ids = {};
     };
@@ -799,9 +802,10 @@ namespace daxa
         auto get(TaskImageView view) const -> TaskImageAttachmentInfo const &;
         auto get(usize index) const -> TaskAttachmentInfo const &;
 
-        auto layout(TaskImageIndexOrView auto timage) const -> ImageLayout
+        [[deprecated("Layout is guaranteed to always be general, stop using this function; API:3.2")]] 
+        auto layout(TaskImageIndexOrView auto) const -> ImageLayout
         {
-            return this->get(timage).layout;
+            return daxa::ImageLayout::GENERAL;
         }
         auto info(TaskIndexOrView auto tresource, u32 array_index = 0) const
         {
@@ -833,7 +837,16 @@ namespace daxa
         }
         auto view(TaskImageIndexOrView auto timg, u32 index = 0)
         {
-            return this->get(timg).view_ids[index];
+            auto const v = this->get(timg).view_ids[index];
+            DAXA_DBG_ASSERT_TRUE_M(
+                !v.is_empty(), 
+                "Failed to return cached image view for image attachment!\n"
+                "A likely cause for this error is that no daxa::ImageViewType was specified for the attachment.\n"
+                "To specify an image view type for a task attachment you can either:\n"
+                "1. add the view type to the attachment within a task head as the second parameter: DAXA_TG_IMAGE(COLOR_ATTACHMENT, REGULAR_2D, image_name), OR\n"
+                "2. add the view type when adding the attachment to the task: task.color_attachment.reads_writes(daxa::ImageViewType::REGULAR_2D, image)"
+            );
+            return v;
         }
     };
 
@@ -1038,13 +1051,6 @@ namespace daxa
             u32 size = {};
             u32 alignment = {};
         };
-        template <typename T>
-        auto constexpr align_up(T value, T align) -> T
-        {
-            if (value == 0 || align == 0)
-                return 0;
-            return (value + align - static_cast<T>(1)) / align * align;
-        }
         constexpr auto get_asb_size_and_alignment(auto const & attachment_array) -> AsbSizeAlignment
         {
             AsbSizeAlignment size_align = {};

@@ -124,7 +124,7 @@ namespace tests
         struct TestTask : TestShaderTaskHead::Task
         {
             AttachmentViews views = {};
-            std::shared_ptr<daxa::ComputePipeline> pipeline = {};
+            daxa::ComputePipeline* pipeline = {};
             void callback(daxa::TaskInterface ti)
             {
                 ti.recorder.set_pipeline(*pipeline);
@@ -134,10 +134,10 @@ namespace tests
         };
         task_graph.add_task(TestTask{
             .views = TestTask::Views{ 
-                .align_test_src = src,
-                .align_test_dst = dst,
+                .align_test_src = src.view(),
+                .align_test_dst = dst.view(),
             },
-            .pipeline = compute_pipeline,
+            .pipeline = compute_pipeline.get(),
         });
         task_graph.submit({});
         task_graph.complete({});
@@ -237,7 +237,7 @@ namespace tests
             }));
         task_graph.add_task(daxa::InlineTask::Compute("bindless reads access 2")
             .reads(handles_buffer, f32_buffer)
-            .samples(f32_image)
+            .reads(f32_image)
             .executes([=](daxa::TaskInterface ti)
             {
                 ti.recorder.set_pipeline(*bindless_access_followup);
