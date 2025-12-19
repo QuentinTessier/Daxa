@@ -57,7 +57,7 @@
 #define DAXA_REMOVE_DEPRECATED 0
 #include <daxa/daxa.hpp>
 #include <vulkan/vulkan.h>
-#include <vma/vk_mem_alloc.h>
+#include <vk_mem_alloc.h>
 #include <daxa/c/daxa.h>
 
 using namespace daxa;
@@ -200,9 +200,9 @@ constexpr bool is_daxa_result_success(daxa_Result v)
 #define _DAXA_DEFER_ON_ERROR(V)
 
 
-/// 
+///
 /// Daxa Implementation Core Library
-/// 
+///
 
 #include <functional>
 
@@ -377,7 +377,7 @@ namespace daxa
             {
                 // First significant bit index past BLOCK_BASE_ELEMENT_COUNT is the block index:
                 u32 const first_significant_bit_idx = 32u - static_cast<u32>(std::countl_zero(element_index / BLOCK_BASE_ELEMENT_COUNT));
-                // Remove the block index first significant bit from index, to get in_block_index: 
+                // Remove the block index first significant bit from index, to get in_block_index:
                 // mask is identical for first two blocks as they have the same size:
                 u32 const mask_block_idx = std::max(1u,first_significant_bit_idx) - 1u;
                 u32 const in_block_idx_mask = ((BLOCK_BASE_ELEMENT_COUNT << mask_block_idx) - 1u);
@@ -613,7 +613,7 @@ namespace daxa
             u32 const insert_size = static_cast<u32>(distance);
             DAXA_DBG_ASSERT_TRUE_M((insert_size + element_count) <= CAPACITY, "ERROR: insert would overflow CAPACITY");
 
-            if (insert_size == 0) 
+            if (insert_size == 0)
             {
                 return iter;
             }

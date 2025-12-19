@@ -1,4 +1,5 @@
 #include "impl_core.hpp"
+#include <cstring>
 
 #include "impl_features.hpp"
 
@@ -433,7 +434,8 @@ namespace daxa
             bool all_set = true;
             for (auto const & offset : feature.vk_feature_offsets)
             {
-                VkBool32 value = *reinterpret_cast<VkBool32 const *>(address + offset);
+                VkBool32 value;
+                std::memcpy(&value, address + offset, sizeof(VkBool32));
                 all_set = all_set && (value == VK_TRUE);
             }
             if (all_set)
@@ -490,8 +492,8 @@ namespace daxa
             {
                 for (auto const & offset : feature.vk_feature_offsets)
                 {
-                    VkBool32 & value = *reinterpret_cast<VkBool32 *>(address + offset);
-                    value = VK_TRUE;
+                    VkBool32 value = VK_TRUE;
+                    std::memcpy(address + offset, &value, sizeof(VkBool32));
                 }
             }
         }
@@ -501,8 +503,8 @@ namespace daxa
             {
                 for (auto const & offset : feature.vk_feature_offsets)
                 {
-                    VkBool32 & value = *reinterpret_cast<VkBool32 *>(address + offset);
-                    value = VK_TRUE;
+                    VkBool32 value = VK_TRUE;
+                    std::memcpy(address + offset, &value, sizeof(VkBool32));
                 }
             }
         }

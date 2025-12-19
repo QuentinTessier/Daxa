@@ -64,7 +64,7 @@ auto daxa_dvc_create_swapchain(daxa_Device device, daxa_SwapchainInfo const * in
     u32 format_count = 0;
     result = static_cast<daxa_Result>(vkGetPhysicalDeviceSurfaceFormatsKHR(ret.device->vk_physical_device, ret.vk_surface, &format_count, nullptr));
     _DAXA_RETURN_IF_ERROR(result, result);
-    
+
     std::vector<VkSurfaceFormatKHR> surface_formats;
     surface_formats.resize(format_count);
     result = static_cast<daxa_Result>(vkGetPhysicalDeviceSurfaceFormatsKHR(ret.device->vk_physical_device, ret.vk_surface, &format_count, surface_formats.data()));
@@ -89,7 +89,7 @@ auto daxa_dvc_create_swapchain(daxa_Device device, daxa_SwapchainInfo const * in
 
     result = ret.recreate();
     _DAXA_RETURN_IF_ERROR(result, result);
-    
+
     // We have an acquire semaphore for each frame in flight.
     for (u32 i = 0; i < ret.info.max_allowed_frames_in_flight; i++)
     {
@@ -219,7 +219,7 @@ auto daxa_swp_gpu_timeline_semaphore(daxa_Swapchain self) -> daxa_TimelineSemaph
 
 auto daxa_swp_current_cpu_timeline_value(daxa_Swapchain self) -> u64
 {
-    return static_cast<u64>(std::max(0ll, self->cpu_frame_timeline));
+    return static_cast<u64>(std::max(0l, self->cpu_frame_timeline));
 }
 
 auto daxa_swp_info(daxa_Swapchain self) -> daxa_SwapchainInfo const *

@@ -54,6 +54,7 @@ pub fn build(b: *std.Build) void {
     const src_dir = "src/";
     daxa.addCSourceFiles(.{ .files = &.{
         src_dir ++ "cpp_wrapper.cpp",
+
         src_dir ++ "impl_device.cpp",
         src_dir ++ "impl_features.cpp",
         src_dir ++ "impl_instance.cpp",
@@ -65,6 +66,12 @@ pub fn build(b: *std.Build) void {
         src_dir ++ "impl_sync.cpp",
         src_dir ++ "impl_dependencies.cpp",
         src_dir ++ "impl_timeline_query.cpp",
+
+        src_dir ++ "utils/impl_task_graph.cpp",
+        src_dir ++ "utils/impl_imgui.cpp",
+        src_dir ++ "utils/impl_fsr2.cpp",
+        src_dir ++ "utils/impl_mem.cpp",
+        src_dir ++ "utils/impl_pipeline_manager.cpp",
     }, .language = .cpp, .flags = &.{
         "-std=c++20",
         "-DDAXA_CMAKE_EXPORT=",
